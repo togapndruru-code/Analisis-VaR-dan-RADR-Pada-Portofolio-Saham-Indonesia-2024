@@ -1,0 +1,232 @@
+# Simulasi VaR &RADR Menggunakan R pada portovolio saham indo
+# Install package (jalankan sekali saja)
+install.packages("quantmod")
+install.packages("PerformanceAnalytics")
+install.packages("xts")
+
+# Memanggil library
+library(quantmod)
+library(PerformanceAnalytics)
+library(xts)
+
+#Memanggil data saham 
+# Mengambil data saham dari Yahoo Finance
+
+getSymbols("BBCA.JK",
+           src = "yahoo",
+           from = "2025-01-01",
+           to = "2025-12-31")
+
+getSymbols("BBRI.JK",
+           src = "yahoo",
+           from = "2025-01-01",
+           to = "2025-12-31")
+
+getSymbols("TLKM.JK",
+           src = "yahoo",
+           from = "2025-01-01",
+           to = "2025-12-31")
+
+#Membentuk dataset harga penutupan
+# Mengambil harga penutupan (Close Price)
+
+prices <- na.omit(
+  merge(
+    Cl(BBCA.JK),
+    Cl(BBRI.JK),
+    Cl(TLKM.JK)
+  )
+)
+
+colnames(prices) <- c("BBCA","BBRI","TLKM")
+
+head(prices)
+summary(prices)
+
+#Menghitung return Harian 
+# Return harian
+
+returns <- na.omit(
+  Return.calculate(prices)
+)
+
+head(returns)
+
+summary(returns)
+
+#Statistik Deskriptif (Statistik dasar)
+
+mean(returns$BBCA)
+sd(returns$BBCA)
+
+mean(returns$BBRI)
+sd(returns$BBRI)
+
+mean(returns$TLKM)
+sd(returns$TLKM)
+
+
+# Korelasi antar saham
+
+correlation <- cor(returns)
+
+correlation
+
+# Bobot portofolio
+
+weights <- c(
+  0.40,  # BBCA
+  0.35,  # BBRI
+  0.25   # TLKM
+)
+
+# Return portofolio
+
+portfolio_return <- Return.portfolio(
+  returns,
+  weights = weights
+)
+
+head(portfolio_return)
+
+# menghitung Volatilitas portovolio 
+
+sigma <- sd(portfolio_return)
+
+sigma
+
+#Menghitung VaR Variance-Covariance (95%)
+# Nilai investasi
+
+portfolio_value <- 500000000
+
+# Z-score 95%
+
+z <- 1.645
+
+# VaR
+
+VaR_95 <- z *
+  sigma *
+  portfolio_value
+
+VaR_95
+
+#Menghitung VaR Variance-Covariance (99%) 
+# Z-score 99%
+
+z99 <- 2.33
+
+VaR_99 <- z99 *
+  sigma *
+  portfolio_value
+
+VaR_99
+
+#untuk  tingkat kepercayaan 99%
+VaR(
+  portfolio_return,
+  p = 0.99,
+  method = "historical"
+)
+
+#Visualisasi return portovolio 
+plot(
+  portfolio_return,
+  main = "Return Portofolio BBCA-BBRI-TLKM",
+  col = "blue"
+)
+
+#Menghitung RADR
+#Asumsi: (Risk Free Rate = 6% ==> Risk Premium = 8%)
+
+risk_free <- 0.06
+
+risk_premium <- 0.08
+
+RADR <- risk_free +
+  risk_premium
+
+RADR
+
+#Menghitung NPV dengan RADR
+investment <- -500000000
+
+cashflows <- c(
+  150000000,
+  150000000,
+  150000000,
+  150000000,
+  150000000
+)
+
+rate <- 0.14
+
+npv <- investment +
+  sum(
+    cashflows /
+      (1 + rate)^(1:5)
+  )
+
+npv 
+
+#Analisis Sensitivitas RADR
+rates <- c(
+  0.10,
+  0.12,
+  0.14,
+  0.16,
+  0.18
+)
+
+for(r in rates){
+  
+  npv <- investment +
+    sum(
+      cashflows /
+        (1+r)^(1:5)
+    )
+  
+  print(
+    paste(
+      "RADR =",
+      r*100,
+      "%, NPV =",
+      round(npv,0)
+    )
+  )
+  
+}
+
+#Grafik Sensitivitas NPV terhadap RADR
+rates <- seq(
+  0.08,
+  0.20,
+  by = 0.01
+)
+
+npv_values <- sapply(
+  rates,
+  function(r){
+    
+    investment +
+      sum(
+        cashflows /
+          (1+r)^(1:5)
+      )
+    
+  }
+)
+
+plot(
+  rates*100,
+  npv_values,
+  type = "b",
+  col = "red",
+  xlab = "RADR (%)",
+  ylab = "NPV (Rp)",
+  main = "Sensitivitas NPV terhadap RADR"
+)
+
+
+
